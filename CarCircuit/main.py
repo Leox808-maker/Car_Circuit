@@ -14,87 +14,122 @@ AUTO_VERDE = scala_immagine(pygame.image.load("imgs/macchina_verde.png"), 0.55)
 LARGHEZZA, ALTEZZA = PISTA.get_width(), PISTA.get_height()
 FINESTRA = pygame.display.set_mode((LARGHEZZA, ALTEZZA))
 pygame.display.set_caption("Gioco di Corse!")
+FONT_PRINCIPALE = pygame.font.SysFont("comicsans", 44)
 
-FPS = 60
+FREQUENZA_FPS = 60
+PERCORSO = [(175, 119), (110, 70), (56, 133), (70, 481), (318, 731), (404, 680), (418, 521), (507, 475), (600, 551), (613, 715), (736, 713),
+            (734, 399), (611, 357), (409, 343), (433, 257), (697, 258), (738, 123), (581, 71), (303, 78), (275, 377), (176, 388), (178, 260)]
 
 
-class VeicoloBase:
-    def __init__(self, velocità_massima, velocità_rotazione):
+class InfoGioco:
+    LIVELLI = 10
+
+    def __init__(self, livello=1):
+        self.livello = livello
+        self.iniziato = False
+        self.tempo_inizio_livello = 0
+
+    def prossimo_livello(self):
+        self.livello += 1
+        self.iniziato = False
+
+    def resetta(self):
+        self.livello = 1
+        self.iniziato = False
+        self.tempo_inizio_livello = 0
+
+    def gioco_completato(self):
+        return self.livello > self.LIVELLI
+
+    def inizia_livello(self):
+        self.iniziato = True
+        self.tempo_inizio_livello = time.time()
+
+    def ottieni_tempo_livello(self):
+        if not self.iniziato:
+            return 0
+        return round(time.time() - self.tempo_inizio_livello)
+
+
+class AutoGenerica:
+    def __init__(self, velocita_massima, velocita_rotazione):
         self.immagine = self.IMMAGINE
-        self.velocità_massima = velocità_massima
-        self.velocità_attuale = 0
-        self.velocità_rotazione = velocità_rotazione
+        self.velocita_massima = velocita_massima
+        self.velocita = 0
+        self.velocita_rotazione = velocita_rotazione
         self.angolo = 0
         self.posizione_x, self.posizione_y = self.POSIZIONE_INIZIALE
         self.accelerazione = 0.1
 
     def ruota(self, sinistra=False, destra=False):
         if sinistra:
-            self.angolo += self.velocità_rotazione
+            self.angolo += self.velocita_rotazione
         elif destra:
-            self.angolo -= self.velocità_rotazione
+            self.angolo -= self.velocita_rotazione
 
     def disegna(self, finestra):
-        centra_rotazione_e_blit(finestra, self.immagine, (self.posizione_x, self.posizione_y), self.angolo)
+        disegna_con_rotazione(finestra, self.immagine, (self.posizione_x, self.posizione_y), self.angolo)
 
-    def avanza(self):
-        self.velocità_attuale = min(self.velocità_attuale + self.accelerazione, self.velocità_massima)
+    def muovi_avanti(self):
+        self.velocita = min(self.velocita + self.accelerazione, self.velocita_massima)
+        self.muovi()
+
+    def muovi_indietro(self):
+        self.velocita = max(self.velocita - self.accelerazione, -self.velocita_massima/2)
         self.muovi()
 
     def muovi(self):
-        radiani = math.radians(self.angolo)
-        verticale = math.cos(radiani) * self.velocità_attuale
-        orizzontale = math.sin(radiani) * self.velocità_attuale
+        radianti = math.radians(self.angolo)
+        verticale = math.cos(radianti) * self.velocita
+        orizzontale = math.sin(radianti) * self.velocita
 
         self.posizione_y -= verticale
         self.posizione_x -= orizzontale
 
-    def rallenta(self):
-        self.velocità_attuale = max(self.velocità_attuale - self.accelerazione / 2, 0)
-        self.muovi()
+    def collisione(self, maschera, x=0, y=0):
+        maschera_auto = pygame.mask.from_surface(self.immagine)
+        offset = (int(self.posizione_x - x), int(self.posizione_y - y))
+        punto_collisione = maschera.overlap(maschera_auto, offset)
+        return punto_collisione
+
+    def resetta(self):
+        self.posizione_x, self.posizione_y = self.POSIZIONE_INIZIALE
+        self.angolo = 0
+        self.velocita = 0
 
 
-class AutoGiocatore(VeicoloBase):
+class AutoGiocatore(AutoGenerica):
     IMMAGINE = AUTO_ROSSA
     POSIZIONE_INIZIALE = (180, 200)
 
+    def riduci_velocita(self):
+        self.velocita = max(self.velocita - self.accelerazione / 2, 0)
+        self.muovi()
 
-def aggiorna_schermo(finestra, immagini, auto_giocatore):
-    for immagine, posizione in immagini:
-        finestra.blit(immagine, posizione)
-
-    auto_giocatore.disegna(finestra)
-    pygame.display.update()
-
-
-gioco_in_corso = True
-orologio = pygame.time.Clock()
-immagini = [(ERBA, (0, 0)), (PISTA, (0, 0))]
-auto_giocatore = AutoGiocatore(4, 4)
-
-while gioco_in_corso:
-    orologio.tick(FPS)
-
-    aggiorna_schermo(FINESTRA, immagini, auto_giocatore)
-
-    for evento in pygame.event.get():
-        if evento.type == pygame.QUIT:
-            gioco_in_corso = False
-            break
-
-    tasti_premuti = pygame.key.get_pressed()
-    mosso = False
-
-    if tasti_premuti[pygame.K_a]:
-        auto_giocatore.ruota(sinistra=True)
-    if tasti_premuti[pygame.K_d]:
-        auto_giocatore.ruota(destra=True)
-    if tasti_premuti[pygame.K_w]:
-        mosso = True
-        auto_giocatore.avanza()
-
-    if not mosso:
-        auto_giocatore.rallenta()
+    def rimbalza(self):
+        self.velocita = -self.velocita
+        self.muovi()
 
 
-pygame.quit()
+class AutoComputer(AutoGenerica):
+    IMMAGINE = AUTO_VERDE
+    POSIZIONE_INIZIALE = (150, 200)
+
+    def __init__(self, velocita_massima, velocita_rotazione, percorso=[]):
+        super().__init__(velocita_massima, velocita_rotazione)
+        self.percorso = percorso
+        self.punto_corrente = 0
+        self.velocita = velocita_massima
+
+    def disegna_punti(self, finestra):
+        for punto in self.percorso:
+            pygame.draw.circle(finestra, (255, 0, 0), punto, 5)
+
+    def disegna(self, finestra):
+        super().disegna(finestra)
+        # self.disegna_punti(finestra)
+
+    def calcola_angolo(self):
+        x_obiettivo, y_obiettivo = self.percorso[self.punto_corrente]
+        differenza_x = x_obiettivo - self.posizione_x
+        differenza_y = y_obiettivo - self.posizione_y
