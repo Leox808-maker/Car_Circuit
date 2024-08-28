@@ -89,3 +89,32 @@ class EnemyCar:
 
         self.angle = math.degrees(escape_angle)
         self.move()
+
+
+    def apply_behavior(self):
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_behavior_switch > self.switch_behavior_interval:
+            self.switch_behavior()
+            self.last_behavior_switch = current_time
+
+        if self.behavior_mode == "aggressive":
+            self.speed = min(self.speed + self.acceleration * 2, self.max_speed * 1.5)
+        elif self.behavior_mode == "defensive":
+            self.speed = max(self.speed - self.acceleration, self.max_speed * 0.5)
+        else:  # Normal mode
+            self.speed = self.max_speed
+
+    def switch_behavior(self):
+        behaviors = ["normal", "aggressive", "defensive"]
+        self.behavior_mode = random.choice(behaviors)
+
+    def reset(self):
+        self.x, self.y = self.path[0] if self.path else (0, 0)
+        self.angle = 0
+        self.speed = self.max_speed
+        self.current_point = 0
+        self.behavior_mode = "normal"
+        self.avoid_obstacles = False
+
+
+
