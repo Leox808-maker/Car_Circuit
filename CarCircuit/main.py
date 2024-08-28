@@ -133,3 +133,110 @@ class AutoComputer(AutoGenerica):
         x_obiettivo, y_obiettivo = self.percorso[self.punto_corrente]
         differenza_x = x_obiettivo - self.posizione_x
         differenza_y = y_obiettivo - self.posizione_y
+
+        if differenza_y == 0:
+            angolo_radiante = math.pi / 2
+        else:
+            angolo_radiante = math.atan(differenza_x / differenza_y)
+
+        if y_obiettivo > self.posizione_y:
+            angolo_radiante += math.pi
+
+        differenza_angolo = self.angolo - math.degrees(angolo_radiante)
+        if differenza_angolo >= 180:
+            differenza_angolo -= 360
+
+        if differenza_angolo > 0:
+            self.angolo -= min(self.velocita_rotazione, abs(differenza_angolo))
+        else:
+            self.angolo += min(self.velocita_rotazione, abs(differenza_angolo))
+
+    def aggiorna_punto_percorso(self):
+        obiettivo = self.percorso[self.punto_corrente]
+        rettangolo_auto = pygame.Rect(
+            self.posizione_x, self.posizione_y, self.immagine.get_width(), self.immagine.get_height())
+        if rettangolo_auto.collidepoint(*obiettivo):
+            self.punto_corrente += 1
+
+    def muovi(self):
+        if self.punto_corrente >= len(self.percorso):
+            return
+
+        self.calcola_angolo()
+        self.aggiorna_punto_percorso()
+        super().muovi()
+
+    def prossimo_livello(self, livello):
+        self.resetta()
+        self.velocita = self.velocita_massima + (livello - 1) * 0.2
+        self.punto_corrente = 0
+
+    def disegna(finestra, immagini, auto_giocatore, auto_computer, info_gioco):
+        for immagine, posizione in immagini:
+            finestra.blit(immagine, posizione)
+
+        testo_livello = FONT_PRINCIPALE.render(
+            f"Livello {info_gioco.livello}", 1, (255, 255, 255))
+        finestra.blit(testo_livello, (10, ALTEZZA - testo_livello.get_height() - 70))
+
+        testo_tempo = FONT_PRINCIPALE.render(
+            f"Tempo: {info_gioco.ottieni_tempo_livello()}s", 1, (255, 255, 255))
+        finestra.blit(testo_tempo, (10, ALTEZZA - testo_tempo.get_height() - 40))
+
+        testo_velocita = FONT_PRINCIPALE.render(
+            f"Velocità: {round(auto_giocatore.velocita, 1)}px/s", 1, (255, 255, 255))
+        finestra.blit(testo_velocita, (10, ALTEZZA - testo_velocita.get_height() - 10))
+
+        auto_giocatore.disegna(finestra)
+        auto_computer.disegna(finestra)
+        pygame.display.update()
+
+    def muovi_giocatore(auto_giocatore):
+        tasti = pygame.key.get_pressed()
+        mosso = False
+
+        if tasti[pygame.K_a]:
+            auto_giocatore.ruota(sinistra=True)
+        if tasti[pygame.K_d]:
+            auto_giocatore.ruota(destra=True)
+        if tasti[pygame.K_w]:
+            mosso = True
+            auto_giocatore.muovi_avanti()
+        if tasti[pygame.K_s]:
+            mosso = True
+            auto_giocatore.muovi_indietro()
+
+        if not mosso:
+            auto_giocatore.riduci_velocita()
+
+    def gestisci_collisione(auto_giocatore, auto_computer, info_gioco):
+        if auto_giocatore.collisione(BORDO_PISTA_MASK) != None:
+            auto_giocatore.rimbalza()
+
+        auto_computer_traguardo = auto_computer.collisione(
+            TRAGUARDO_MASK, *POSIZIONE_TRAGUARDO)
+        if auto_computer_traguardo != None:
+            mostra_testo_centrato(FINESTRA, FONT_PRINCIPALE, "Hai perso!")
+            pygame.display.update()
+            pygame.time.wait(5000)
+            info_gioco.resetta()
+            auto_giocatore.resetta()
+            auto_computer.resetta()
+
+        auto_giocatore_traguardo = auto_giocatore.collisione(
+            TRAGUARDO_MASK, *POSIZIONE_TRAGUARDO)
+        if auto_giocatore_traguardo != None:
+            if auto_giocatore_traguardo[1] == 0:
+                auto_giocatore.rimbalza()
+            else:
+                info_gioco.prossimo_livello()
+                auto_giocatore.resetta()
+                auto_computer.prossimo_livello(info_gioco.livello)
+
+    esegui = True
+    orologio = pygame.time.Clock()
+    immagini = [(ERBA, (0, 0)), (PISTA, (0, 0)),
+                (TRAGUARDO, POSIZIONE_TRAGUARDO), (BORDO_PISTA, (0, 0))]
+    auto_giocatore = AutoGiocatore(4, 4)
+    auto_computer = AutoComputer(2, 4, PERCORSO)
+    info_gioco = InfoGioco()
