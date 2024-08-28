@@ -91,3 +91,34 @@ class CustomizationScreen:
         if keys[pygame.K_3]:
             return 2
         return 0
+
+        def run(self):
+            while self.player_data['screen'] == 'customization':
+                self.handle_events()
+                self.draw_customization()
+
+    class Button:
+        def __init__(self, text, font, rect, color_idle, color_hover, action=None):
+            self.text = text
+            self.font = font
+            self.rect = pygame.Rect(rect)
+            self.color_idle = color_idle
+            self.color_hover = color_hover
+            self.action = action
+            self.hovered = False
+            self.text_surf = self.font.render(self.text, True, (255, 255, 255))
+            self.text_rect = self.text_surf.get_rect(center=self.rect.center)
+
+        def draw(self, win):
+            if self.hovered:
+                pygame.draw.rect(win, self.color_hover, self.rect)
+            else:
+                pygame.draw.rect(win, self.color_idle, self.rect)
+            win.blit(self.text_surf, self.text_rect)
+
+        def check_hover(self, pos):
+            self.hovered = self.rect.collidepoint(pos)
+
+        def click(self):
+            if self.hovered and self.action:
+                self.action()
