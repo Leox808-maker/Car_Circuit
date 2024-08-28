@@ -240,3 +240,41 @@ class AutoComputer(AutoGenerica):
     auto_giocatore = AutoGiocatore(4, 4)
     auto_computer = AutoComputer(2, 4, PERCORSO)
     info_gioco = InfoGioco()
+
+
+while esegui:
+    orologio.tick(FREQUENZA_FPS)
+
+    disegna(FINESTRA, immagini, auto_giocatore, auto_computer, info_gioco)
+
+    while not info_gioco.iniziato:
+        mostra_testo_centrato(
+            FINESTRA, FONT_PRINCIPALE, f"Premi un tasto per iniziare il livello {info_gioco.livello}!")
+        pygame.display.update()
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                break
+
+            if evento.type == pygame.KEYDOWN:
+                info_gioco.inizia_livello()
+
+    for evento in pygame.event.get():
+        if evento.type == pygame.QUIT:
+            esegui = False
+            break
+
+    muovi_giocatore(auto_giocatore)
+    auto_computer.muovi()
+
+    gestisci_collisione(auto_giocatore, auto_computer, info_gioco)
+
+    if info_gioco.gioco_completato():
+        mostra_testo_centrato(FINESTRA, FONT_PRINCIPALE, "Hai vinto il gioco!")
+        pygame.time.wait(5000)
+        info_gioco.resetta()
+        auto_giocatore.resetta()
+        auto_computer.resetta()
+
+
+pygame.quit()
