@@ -1,53 +1,54 @@
 import pygame
+import os
 import sys
 from utils import blit_text_center
 
-class UnlockCarsScreen:
-    def __init__(self, win, width, height, cars, player_data):
+class ImportMapsScreen:
+    def __init__(self, win, width, height, map_directory, player_data):
         self.win = win
         self.width = width
         self.height = height
         self.font = pygame.font.SysFont("comicsans", 36)
         self.small_font = pygame.font.SysFont("comicsans", 28)
-        self.cars = cars  # List of cars with unlock requirements
-        self.player_data = player_data  # Player progress data (points, levels, etc.)
-        self.current_car_index = 0
+        self.map_directory = map_directory
+        self.maps = self.get_maps()
+        self.player_data = player_data
+        self.current_map_index = 0
         self.buttons = []
         self.create_buttons()
 
+    def get_maps(self):
+        maps = [f for f in os.listdir(self.map_directory) if f.endswith('.png')]
+        return maps
+
     def create_buttons(self):
-        unlock_button = Button("Unlock", self.font, (self.width // 2 - 150, self.height - 100, 300, 50),
-                               (0, 128, 0), (0, 255, 0), action=self.unlock_car)
+        import_button = Button("Import", self.font, (self.width // 2 - 150, self.height - 100, 300, 50),
+                               (0, 128, 0), (0, 255, 0), action=self.import_map)
         back_button = Button("Back to Menu", self.font, (self.width // 2 - 150, self.height - 50, 300, 50),
                              (128, 0, 0), (255, 0, 0), action=self.go_back_to_menu)
-        self.buttons.append(unlock_button)
+        self.buttons.append(import_button)
         self.buttons.append(back_button)
 
-    def unlock_car(self):
-        car = self.cars[self.current_car_index]
-        if self.player_data['points'] >= car['unlock_points']:
-            if car['name'] not in self.player_data['unlocked_cars']:
-                self.player_data['unlocked_cars'].append(car['name'])
-                self.player_data['points'] -= car['unlock_points']
+    def import_map(self):
+        selected_map = self.maps[self.current_map_index]
+        self.player_data['imported_maps'].append(selected_map)
 
     def go_back_to_menu(self):
         self.player_data['screen'] = 'menu'
 
-    def draw_unlock_screen(self):
+    def draw_import_screen(self):
         self.win.fill((0, 0, 0))
-        blit_text_center(self.win, self.font, "Unlock New Cars")
+        blit_text_center(self.win, self.font, "Import New Maps")
 
-        car = self.cars[self.current_car_index]
-        car_text = f"Car: {car['name']}"
-        points_text = f"Unlock Points: {car['unlock_points']}"
-        unlocked_text = "Unlocked!" if car['name'] in self.player_data['unlocked_cars'] else "Locked"
+        if len(self.maps) == 0:
+            self.draw_text("No maps available for import.", (255, 0, 0), (self.width // 2, self.height // 2))
+        else:
+            selected_map = self.maps[self.current_map_index]
+            map_text = f"Map: {selected_map}"
 
-        self.draw_text(car_text, (255, 255, 255), (self.width // 2, self.height // 2 - 120))
-        self.draw_text(points_text, (255, 255, 255), (self.width // 2, self.height // 2 - 60))
-        self.draw_text(unlocked_text, (255, 255, 255), (self.width // 2, self.height // 2))
-
-        instruction_text = "Use Left/Right to change car"
-        self.draw_text(instruction_text, (255, 255, 255), (self.width // 2, self.height // 2 + 120), font=self.small_font)
+            self.draw_text(map_text, (255, 255, 255), (self.width // 2, self.height // 2 - 60))
+            instruction_text = "Use Left/Right to change map"
+            self.draw_text(instruction_text, (255, 255, 255), (self.width // 2, self.height // 2 + 60), font=self.small_font)
 
         for button in self.buttons:
             button.draw(self.win)
@@ -60,7 +61,6 @@ class UnlockCarsScreen:
         text_surf = font.render(text, True, color)
         text_rect = text_surf.get_rect(center=position)
         self.win.blit(text_surf, text_rect)
-
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -78,15 +78,15 @@ class UnlockCarsScreen:
                     button.click()
 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    self.current_car_index = (self.current_car_index - 1) % len(self.cars)
-                if event.key == pygame.K_RIGHT:
-                    self.current_car_index = (self.current_car_index + 1) % len(self.cars)
+                if event.key == pygame.K_LEFT and len(self.maps) > 0:
+                    self.current_map_index = (self.current_map_index - 1) % len(self.maps)
+                if event.key == pygame.K_RIGHT and len(self.maps) > 0:
+                    self.current_map_index = (self.current_map_index + 1) % len(self.maps)
 
     def run(self):
-        while self.player_data['screen'] == 'unlock_cars':
+        while self.player_data['screen'] == 'import_maps':
             self.handle_events()
-            self.draw_unlock_screen()
+            self.draw_import_screen()
 
 
 class Button:
